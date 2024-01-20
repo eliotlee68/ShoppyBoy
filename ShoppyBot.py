@@ -77,6 +77,12 @@ def menu(update: Update, context: CallbackContext) -> None:
         reply_markup=FIRST_MENU_MARKUP
     )
 
+def nigga(update: Update, context: CallbackContext) -> None:
+
+    context.bot.send_message(
+        update.message.from_user.id,
+        "you cant say that nigga"
+    )
 
 def button_tap(update: Update, context: CallbackContext) -> None:
     """
@@ -116,6 +122,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("scream", scream))
     dispatcher.add_handler(CommandHandler("whisper", whisper))
     dispatcher.add_handler(CommandHandler("menu", menu))
+    dispatcher.add_handler(CommandHandler("nigga", nigga))
 
     # Register handler for inline buttons
     dispatcher.add_handler(CallbackQueryHandler(button_tap))

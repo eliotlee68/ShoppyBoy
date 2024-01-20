@@ -6,7 +6,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 logger = logging.getLogger(__name__)
 
 # Store bot screaming status
-screaming = True
+screaming = False
 
 # Pre-assign menu text
 FIRST_MENU = "<b>Menu 1</b>\n\nA beautiful menu with a shiny inline button."

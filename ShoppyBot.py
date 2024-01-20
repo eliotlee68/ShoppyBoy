@@ -26,6 +26,15 @@ SECOND_MENU_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton(TUTORIAL_BUTTON, url="https://core.telegram.org/bots/api")]
 ])
 
+def introduce(update: Update, context: CallbackContext) -> None:
+    """
+    This function handles the /start command and introduces the bot.
+    """
+    context.bot.send_message(
+        update.message.chat_id,
+        "Hello! I ShoppyBoy, the telegram bot that buys products that are NECESSARY and BENEFICIAL for you :3",
+        parse_mode=ParseMode.HTML
+    )
 
 def echo(update: Update, context: CallbackContext) -> None:
     """
@@ -113,6 +122,7 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     # Register commands
+    dispatcher.add_handler(CommandHandler("start", introduce))
     dispatcher.add_handler(CommandHandler("scream", scream))
     dispatcher.add_handler(CommandHandler("whisper", whisper))
     dispatcher.add_handler(CommandHandler("menu", menu))

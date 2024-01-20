@@ -1,91 +1,56 @@
 import logging
+import asyncio
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.constants import ParseMode
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, CallbackContext
 
-from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
-
+# Initialize logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize bot
+application = ApplicationBuilder().token("6953246709:AAEJyKK44ubgZFMaILwDKZROiLaYOT_AroA").build()
+
 
 # Store bot screaming status
 screaming = True
 
-# Pre-assign menu text
+# Menu text and button configuration
 FIRST_MENU = "<b>Menu 1</b>\n\nA beautiful menu with a shiny inline button."
 SECOND_MENU = "<b>Menu 2</b>\n\nA better menu with even more shiny inline buttons."
-
-# Pre-assign button text
 NEXT_BUTTON = "Next"
 BACK_BUTTON = "Back"
 TUTORIAL_BUTTON = "Tutorial"
 
 # Build keyboards
-FIRST_MENU_MARKUP = InlineKeyboardMarkup([[
-    InlineKeyboardButton(NEXT_BUTTON, callback_data=NEXT_BUTTON)
-]])
+FIRST_MENU_MARKUP = InlineKeyboardMarkup([[InlineKeyboardButton(NEXT_BUTTON, callback_data=NEXT_BUTTON)]])
 SECOND_MENU_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton(BACK_BUTTON, callback_data=BACK_BUTTON)],
     [InlineKeyboardButton(TUTORIAL_BUTTON, url="https://core.telegram.org/bots/api")]
 ])
 
-
-def echo(update: Update, context: CallbackContext) -> None:
-    """
-    This function would be added to the dispatcher as a handler for messages coming from the Bot API
-    """
-
-    # Print to console
-    print(f'{update.message.from_user.first_name} wrote {update.message.text}')
-
-    if screaming and update.message.text:
-        context.bot.send_message(
-            update.message.chat_id,
-            update.message.text.upper(),
-            # To preserve the markdown, we attach entities (bold, italic...)
-            entities=update.message.entities
-        )
-    else:
-        # This is equivalent to forwarding, without the sender's name
-        update.message.copy(update.message.chat_id)
-
-
-def scream(update: Update, context: CallbackContext) -> None:
-    """
-    This function handles the /scream command
-    """
-
+# Define your command and message handlers
+async def scream(update: Update, context: CallbackContext) -> None:
     global screaming
     screaming = True
 
-
-def whisper(update: Update, context: CallbackContext) -> None:
-    """
-    This function handles /whisper command
-    """
-
+async def whisper(update: Update, context: CallbackContext) -> None:
     global screaming
     screaming = False
 
+async def menu(update: Update, context: CallbackContext) -> None:
+    await context.bot.send_message(update.effective_chat.id, FIRST_MENU, parse_mode=ParseMode.HTML, reply_markup=FIRST_MENU_MARKUP)
 
-def menu(update: Update, context: CallbackContext) -> None:
-    """
-    This handler sends a menu with the inline buttons we pre-assigned above
-    """
+async def echo(update: Update, context: CallbackContext) -> None:
+    if screaming and update.message.text:
+        await context.bot.send_message(update.effective_chat.id, update.message.text.upper(), entities=update.message.entities)
+    else:
+        await update.message.copy(update.effective_chat.id)
 
-    context.bot.send_message(
-        update.message.from_user.id,
-        FIRST_MENU,
-        parse_mode=ParseMode.HTML,
-        reply_markup=FIRST_MENU_MARKUP
-    )
-
-
-def button_tap(update: Update, context: CallbackContext) -> None:
-    """
-    This handler processes the inline buttons on the menu
-    """
-
-    data = update.callback_query.data
-    text = ''
-    markup = None
+async def button_tap(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    data = query.data
+    text = markup = None
 
     if data == NEXT_BUTTON:
         text = SECOND_MENU
@@ -94,41 +59,33 @@ def button_tap(update: Update, context: CallbackContext) -> None:
         text = FIRST_MENU
         markup = FIRST_MENU_MARKUP
 
-    # Close the query to end the client-side loading animation
-    update.callback_query.answer()
+    await query.answer()
+    await query.edit_message_text(text=text, parse_mode=ParseMode.HTML, reply_markup=markup)
 
-    # Update message content with corresponding menu section
-    update.callback_query.message.edit_text(
-        text,
-        ParseMode.HTML,
-        reply_markup=markup
-    )
+async def quit(update: Update, context: CallbackContext) -> None:
+    await context.bot.send_message(update.effective_chat.id, "Bye!")
+    await application.updater.stop()
+    await application.stop()
+    await application.shutdown()
+    
+# Main function to run the bot
+async def main() -> None:
 
+    # Register handlers
+    application.add_handler(CommandHandler("scream", scream))
+    application.add_handler(CommandHandler("whisper", whisper))
+    application.add_handler(CommandHandler("menu", menu))
+    application.add_handler(CallbackQueryHandler(button_tap))
+    application.add_handler(MessageHandler(~filters.Command(), echo))
 
-def main() -> None:
-    updater = Updater("6953246709:AAEJyKK44ubgZFMaILwDKZROiLaYOT_AroA")
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
 
-    # Get the dispatcher to register handlers
-    # Then, we register each handler and the conditions the update must meet to trigger it
-    dispatcher = updater.dispatcher
-
-    # Register commands
-    dispatcher.add_handler(CommandHandler("scream", scream))
-    dispatcher.add_handler(CommandHandler("whisper", whisper))
-    dispatcher.add_handler(CommandHandler("menu", menu))
-
-    # Register handler for inline buttons
-    dispatcher.add_handler(CallbackQueryHandler(button_tap))
-
-    # Echo any message that is not a command
-    dispatcher.add_handler(MessageHandler(~Filters.command, echo))
-
-    # Start the Bot
-    updater.start_polling()
-
-    # Run the bot until you press Ctrl-C
-    updater.idle()
-
+    # Create a never-set event to keep the loop running
+    stop = asyncio.Event()
+    await stop.wait()  # This will block indefinitely until stop.set() is called
 
 if __name__ == '__main__':
-    main()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
